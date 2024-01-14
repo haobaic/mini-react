@@ -4,5 +4,4 @@ const App =<div>Hello mini react! <span>Hi React</span></div>
 // function App(){
 //     return <div>Hello mini react! <span>Hi React</span></div>
 // }
-console.log('App: ', App);
 export default App
