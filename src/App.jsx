@@ -1,7 +1,25 @@
-import React from '../core/React.js'
-// const App = React.createElement("div", { id: "app" }, "Hello mini react!", 'Hi React');
-const App =<div>Hello mini react! <span>Hi React</span></div>
-// function App(){
-//     return <div>Hello mini react! <span>Hi React</span></div>
-// }
-export default App
+import React from "../core/React.js";
+
+function Counter({num}) {
+  return <div>Hi React-{num}</div>;
+}
+
+function CounterComponent() {
+    return <Counter></Counter>;
+  }
+
+// const App = (
+//   <div>
+//     Hello mini react!
+//     <Counter />
+//     <CounterComponent/>
+//   </div>
+// );
+function App(){
+    return <div>
+    Hello mini react!
+    <Counter num={10} />
+    <Counter num={20} />
+  </div>
+}
+export default App;
