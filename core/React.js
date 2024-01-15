@@ -20,6 +20,7 @@ function createElement(type, props, ...children) {
 }
 
 let nextWorkObj = {};
+let root = null
 function render(el, container) {
   nextWorkObj = {
     dom: container,
@@ -27,6 +28,7 @@ function render(el, container) {
       children: [el],
     },
   };
+  root=nextWorkObj
 }
 
 function workLoop(deadline) {
@@ -35,9 +37,25 @@ function workLoop(deadline) {
     nextWorkObj = sunWorkFun(nextWorkObj);
     shouldDeadline = deadline.timeRemaining() < 1;
   }
+  if(!nextWorkObj&&root){
+    commitRoot()
+  }
   requestIdleCallback(workLoop);
 }
 requestIdleCallback(workLoop);
+
+function commitRoot(){
+  commitWork(root.child)
+}
+
+function commitWork(fiber){
+  if(!fiber) return;
+  if(fiber.dom){
+    fiber.parent.dom.append(fiber.dom);
+  }
+  commitWork(fiber.child)
+  commitWork(fiber.sibling)
+}
 
 function createDom(type) {
   return type === "TEXT_ELEMENT"
@@ -77,7 +95,7 @@ function initChildren(fiber){
 function sunWorkFun(fiber) {
   if (!fiber.dom) {
     const dom = (fiber.dom =createDom(fiber.type));
-    fiber.parent.dom.append(dom);
+    
     updateProps(dom,fiber.props)
   }
   initChildren(fiber)
