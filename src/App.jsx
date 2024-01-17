@@ -8,7 +8,7 @@ function Counter({num}) {
     props = {}
     React.update()
   }
-  return <div {...props}>Hi React-{num} <button onClick={handleClick}>count:{count}</button></div>;
+  return <div {...props}>Hi React <button onClick={handleClick}>count:{count}</button></div>;
 }
 
 function CounterComponent() {
@@ -26,7 +26,7 @@ function App(){
     return <div>
     Hello mini react!
     <Counter num={10} />
-    <Counter num={20} />
+    {/* <Counter num={20} /> */}
   </div>
 }
 export default App;
