@@ -43,6 +43,8 @@ function createElement(type, props, ...children) {
 let nextWorkOfUnit = {};
 let wipRoot = null;
 let currentRoot = null;
+let deletions = [];
+let wipFiber = null;
 // 渲染函数
 function render(el, container) {
   // 将 el 元素作为子元素，将 container 元素作为容器，创建 nextWorkOfUnit 对象
@@ -52,7 +54,7 @@ function render(el, container) {
       children: [el],
     },
   };
-  nextWorkOfUnit = wipRoot
+  nextWorkOfUnit = wipRoot;
 }
 
 // 工作循环函数
@@ -62,6 +64,9 @@ function workLoop(deadline) {
   while (!shouldDeadline && nextWorkOfUnit) {
     // 循环执行任务，直到满足截止时间条件或者没有任务可执行
     nextWorkOfUnit = performWorkOfUnit(nextWorkOfUnit); // 使用任务处理函数处理当前任务对象
+    if (wipRoot?.sibling?.type === nextWorkOfUnit?.type) {
+      nextWorkOfUnit = undefined;
+    }
     shouldDeadline = deadline.timeRemaining() < 1; // 判断当前任务的截止时间是否小于1
   }
   if (!nextWorkOfUnit && wipRoot) {
@@ -78,11 +83,27 @@ requestIdleCallback(workLoop);
  * 递归地提交根节点的子节点工作
  */
 function commitRoot() {
+  deletions.forEach(commitDeletions);
   commitWork(wipRoot.child);
-  currentRoot = wipRoot
-  wipRoot = null
+  currentRoot = wipRoot;
+  wipRoot = null;
+  deletions = [];
 }
 
+function commitDeletions(fiber) {
+  if (fiber.dom) {
+    // 初始化fiber的父级节点
+    let fiberParent = fiber.parent;
+
+    // 循环找到有dom节点的父级节点
+    while (!fiberParent.dom) {
+      fiberParent = fiberParent.parent;
+    }
+    fiberParent.dom.removeChild(fiber.dom);
+  } else {
+    commitDeletions(fiber.child);
+  }
+}
 // 提交节点
 function commitWork(fiber) {
   // 检查fiber是否存在
@@ -97,11 +118,11 @@ function commitWork(fiber) {
   }
 
   // 如果fiber的effectTag为'update'，则更新fiber的dom节点的属性
-  if (fiber.effectTag === 'update') {
-    updateProps(fiber.dom, fiber.props, fiber.alternate?.props)
+  if (fiber.effectTag === "update") {
+    updateProps(fiber.dom, fiber.props, fiber.alternate?.props);
   }
   // 如果fiber的effectTag为'placement'，则将fiber的dom节点添加到fiber的父级节点中
-  else if (fiber.effectTag === 'placement') {
+  else if (fiber.effectTag === "placement") {
     if (fiber.dom) {
       fiberParent.dom.append(fiber.dom);
     }
@@ -134,19 +155,24 @@ function createDom(type) {
  */
 function updateProps(dom, nextProps, prvProps) {
   Object.keys(prvProps).forEach((key) => {
-    if (key !== "children") { // 排除children属性
-      if (!(key in nextProps)) { // 如果新属性中不存在该键
+    if (key !== "children") {
+      // 排除children属性
+      if (!(key in nextProps)) {
+        // 如果新属性中不存在该键
         dom.removeAttribute(key); // 移除该属性
       }
     }
   });
   Object.keys(nextProps).forEach((key) => {
-    if (key !== "children") { // 排除children属性
-      if (nextProps[key] !== prvProps[key]) { // 如果新旧属性值不相同
-        if (key.startsWith("on")) { // 如果属性名以"on"开头
-          const eventType = key.slice(2).toLowerCase() // 获取事件类型
-          dom.removeEventListener(eventType, prvProps[key]) // 移除事件监听器
-          dom.addEventListener(eventType, nextProps[key]) // 添加事件监听器
+    if (key !== "children") {
+      // 排除children属性
+      if (nextProps[key] !== prvProps[key]) {
+        // 如果新旧属性值不相同
+        if (key.startsWith("on")) {
+          // 如果属性名以"on"开头
+          const eventType = key.slice(2).toLowerCase(); // 获取事件类型
+          dom.removeEventListener(eventType, prvProps[key]); // 移除事件监听器
+          dom.addEventListener(eventType, nextProps[key]); // 添加事件监听器
         } else {
           dom[key] = nextProps[key]; // 更新属性值
         }
@@ -154,7 +180,6 @@ function updateProps(dom, nextProps, prvProps) {
     }
   });
 }
-
 
 /**
  * 初始化子fiber对象
@@ -164,10 +189,14 @@ function updateProps(dom, nextProps, prvProps) {
 function reconcileChildren(fiber, children) {
   let prvChild = null; // 上一个子fiber对象
   let oldFiber = fiber.alternate?.child; // 备用fiber对象
-  children.forEach((child, index) => { // 遍历子fiber对象数组
+
+  children.forEach((child, index) => {
+    // 遍历子fiber对象数组
     const isSameType = oldFiber && oldFiber.type === child.type; // 判断是否为相同类型
     let newFiber = null; // 创建新的fiber对象
-    if (isSameType) { // 如果是相同类型
+
+    if (isSameType) {
+      // 如果是相同类型
       newFiber = {
         type: child.type, // 设置fiber类型为子fiber类型
         props: child.props, // 设置fiber属性为子fiber属性
@@ -176,38 +205,54 @@ function reconcileChildren(fiber, children) {
         sibling: null, // 设置fiber兄弟fiber为null
         dom: oldFiber.dom, // 设置fiber的dom为备选fiber的dom
         effectTag: "update", // 设置fiber效果标签为"update"
-        alternate: oldFiber // 设置fiber备选fiber为备选fiber
+        alternate: oldFiber, // 设置fiber备选fiber为备选fiber
       };
-    } else { // 如果不是相同类型
-      newFiber = {
-        type: child.type, // 设置fiber类型为子fiber类型
-        props: child.props, // 设置fiber属性为子fiber属性
-        parent: fiber, // 设置fiber父fiber为当前fiber
-        child: null, // 设置fiber子fiber为null
-        sibling: null, // 设置fiber兄弟fiber为null
-        dom: null, // 设置fiber的dom为null
-        effectTag: "placement" // 设置fiber效果标签为"placement"
-      };
+    } else {
+      if (child) {
+        // 如果不是相同类型
+        newFiber = {
+          type: child.type, // 设置fiber类型为子fiber类型
+          props: child.props, // 设置fiber属性为子fiber属性
+          parent: fiber, // 设置fiber父fiber为当前fiber
+          child: null, // 设置fiber子fiber为null
+          sibling: null, // 设置fiber兄弟fiber为null
+          dom: null, // 设置fiber的dom为null
+          effectTag: "placement", // 设置fiber效果标签为"placement"
+        };
+      }
+      if (oldFiber) {
+        deletions.push(oldFiber); // 将备选fiber添加到删除数组
+      }
     }
 
-    if (oldFiber) { // 如果备选fiber存在
+    if (oldFiber) {
+      // 如果备选fiber存在
       oldFiber = oldFiber.sibling; // 将备选fiber指向下一个fiber
     }
-    if (index === 0) { // 如果是第一个子fiber
+    if (index === 0) {
+      // 如果是第一个子fiber
       fiber.child = newFiber; // 设置当前fiber的子fiber为新fiber
     } else {
       prvChild.sibling = newFiber; // 设置前一个子fiber的兄弟fiber为新fiber
     }
-    prvChild = newFiber; // 更新前一个子fiber为新fiber
+    if (newFiber) {
+      prvChild = newFiber; // 更新前一个子fiber为新fiber
+    }
   });
+
+  while (oldFiber) {
+    deletions.push(oldFiber); // 将备选fiber添加到删除数组
+    oldFiber = oldFiber.sibling;
+  }
 }
 
 /**
  * 更新函数组件
- * 
+ *
  * @param {Object} fiber - Fiber对象
  */
 function updateFunctionComponent(fiber) {
+  wipFiber = fiber;
   const children = [fiber.type(fiber.props)];
   reconcileChildren(fiber, children);
 }
@@ -269,18 +314,20 @@ function performWorkOfUnit(fiber) {
 }
 
 function update() {
-  // 将 el 元素作为子元素，将 container 元素作为容器，创建 nextWorkOfUnit 对象
-  wipRoot = {
-    dom: currentRoot.dom,
-    props: currentRoot.props,
-    alternate: currentRoot
+  const currentFiber = wipFiber;
+  return () => {
+    // 将 el 元素作为子元素，将 container 元素作为容器，创建 nextWorkOfUnit 对象
+    wipRoot = {
+      ...currentFiber,
+      alternate: currentFiber,
+    };
+    nextWorkOfUnit = wipRoot;
   };
-  nextWorkOfUnit = wipRoot
 }
 
 const React = {
   render,
   createElement,
-  update
+  update,
 };
 export default React;

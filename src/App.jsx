@@ -1,32 +1,53 @@
 import React from "../core/React.js";
+// const app = React.createElement("div", { id: "app" }, "Hello Mini React");
 
-let count = 10;
-let props = {id:'container'}
-function Counter({num}) {
+let countFoo = 1;
+function Foo() {
+  console.log("🚀 ~ Foo ~ Foo:")
+  const update =  React.update()
   function handleClick(){
-    count++;
-    props = {}
-    React.update()
+    countFoo++;
+    update()
   }
-  return <div {...props}>Hi React <button onClick={handleClick}>count:{count}</button></div>;
+  
+  return <div>
+    <h1>Foo</h1>
+    {countFoo}
+    <button onClick={handleClick}>click</button>
+  </div>;
 }
 
-function CounterComponent() {
-    return <Counter></Counter>;
+let countBar = 1;
+function Bar() {
+  console.log("🚀 ~ Bar ~ Bar:")
+  const update =  React.update()
+  function handleClick(){
+    countBar++;
+    update()
   }
-
-// const App = (
-//   <div>
-//     Hello mini react!
-//     <Counter />
-//     <CounterComponent/>
-//   </div>
-// );
-function App(){
-    return <div>
-    Hello mini react!
-    <Counter num={10} />
-    {/* <Counter num={20} /> */}
-  </div>
+  
+  return <div>
+    <h1>Foo</h1>
+    {countBar}
+    <button onClick={handleClick}>click</button>
+  </div>;
+}
+let countRoot = 1;
+function App() {
+  console.log("🚀 ~ App ~ App:")
+  const update =  React.update()
+  function handleClick(){
+    countRoot++;
+    update()
+  }
+  
+  return (
+    <div>
+      Hello Mini React count:{countRoot}
+      <button onClick={handleClick}>click</button>
+      <Foo />
+      <Bar />
+    </div>
+  );
 }
 export default App;
