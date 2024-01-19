@@ -252,6 +252,8 @@ function reconcileChildren(fiber, children) {
  * @param {Object} fiber - Fiber对象
  */
 function updateFunctionComponent(fiber) {
+  stateHooks = [];
+  stateHookIndex = 0;
   wipFiber = fiber;
   const children = [fiber.type(fiber.props)];
   reconcileChildren(fiber, children);
@@ -325,9 +327,53 @@ function update() {
   };
 }
 
+let stateHooks=[];
+let stateHookIndex=0;
+/**
+ * useState(initialState)函数用于在当前fiber中创建一个新的stateHook。
+ * @param {any} initialState - 初始状态值
+ * @returns {Array} - 返回包含当前状态和setState方法的数组
+ */
+function useState(initialState) {
+  const currentFiber = wipFiber;
+  const oldHooks = currentFiber.alternate?.stateHooks[stateHookIndex];
+  const stateHook = {
+    state: oldHooks ? oldHooks.state : initialState,
+    queue: oldHooks ? oldHooks.queue : [],
+  };
+  // 执行stateHook.queue中的所有action，更新stateHook.state
+  stateHook.queue.forEach((action) => {
+    stateHook.state = action(stateHook.state);
+  });
+  stateHook.queue = [];
+  stateHookIndex++;
+  stateHooks.push(stateHook);
+  currentFiber.stateHooks = stateHooks;
+  
+  /**
+   * setState(actions)函数用于更新stateHook.state。
+   * @param {Function|Object} actions - 更新状态的函数或要更新的状态对象
+   */
+  function setState(actions) {
+    const isFunction = typeof actions === "function";
+    const eagerState = isFunction ? actions(stateHook.state) : actions;
+    if (eagerState === stateHook.state) return;
+    // 将action添加到stateHook.queue中
+    stateHook.queue.push(isFunction ? actions : () => actions);
+    wipRoot = {
+      ...currentFiber,
+      alternate: currentFiber,
+    };
+    nextWorkOfUnit = wipRoot;
+  }
+
+  return [stateHook.state, setState];
+}
+
 const React = {
   render,
   createElement,
   update,
+  useState,
 };
 export default React;

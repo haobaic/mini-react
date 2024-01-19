@@ -1,18 +1,20 @@
 import React from "../core/React.js";
 // const app = React.createElement("div", { id: "app" }, "Hello Mini React");
 
-let countFoo = 1;
+
 function Foo() {
   console.log("🚀 ~ Foo ~ Foo:")
-  const update =  React.update()
+  const [count,setCount] = React.useState(1)
+  const [Bar,setBar] = React.useState('bar')
   function handleClick(){
-    countFoo++;
-    update()
+    setCount((c)=>c+1)
+    setBar('bar11')
   }
   
   return <div>
     <h1>Foo</h1>
-    {countFoo}
+    {count}
+    <p>{Bar}</p>
     <button onClick={handleClick}>click</button>
   </div>;
 }
@@ -35,18 +37,18 @@ function Bar() {
 let countRoot = 1;
 function App() {
   console.log("🚀 ~ App ~ App:")
-  const update =  React.update()
-  function handleClick(){
-    countRoot++;
-    update()
-  }
+  // const update =  React.update()
+  // function handleClick(){
+  //   countRoot++;
+  //   update()
+  // }
   
   return (
     <div>
-      Hello Mini React count:{countRoot}
-      <button onClick={handleClick}>click</button>
+      {/* Hello Mini React count:{countRoot} */}
+      {/* <button onClick={handleClick}>click</button> */}
       <Foo />
-      <Bar />
+      {/* <Bar /> */}
     </div>
   );
 }
