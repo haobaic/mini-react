@@ -85,9 +85,60 @@ requestIdleCallback(workLoop);
 function commitRoot() {
   deletions.forEach(commitDeletions);
   commitWork(wipRoot.child);
+  commitEffectHooks();
   currentRoot = wipRoot;
   wipRoot = null;
   deletions = [];
+}
+
+function commitEffectHooks() {
+  // 开始执行effectHooks的回调函数
+  function run(fiber) {
+    if (!fiber) return;
+
+    if (!fiber.alternate) {
+      // 初始化effectHooks的cleanup方法
+      fiber.effectHooks?.forEach((hook) => {
+        hook.cleanup = hook.callback();
+      });
+    } else {
+      // 更新effectHooks的cleanup方法
+      fiber.effectHooks?.forEach((newHooks, index) => {
+        if (newHooks.deps.length > 0) {
+          const oldHooks = fiber.alternate?.effectHooks[index];
+          const needUpdate = oldHooks.deps.some((olDep, idx) => {
+            return olDep !== newHooks.deps[idx];
+          });
+          needUpdate && (newHooks.cleanup = newHooks.callback());
+        }
+      });
+    }
+    // 递归执行run函数
+    run(fiber.child);
+    run(fiber.sibling);
+  }
+
+  // 执行effectHooks的cleanup方法
+  function runCleanup(fiber){
+    // 如果fiber为空，直接返回
+    if (!fiber) return;
+    // 如果fiber的alternate属性存在，且effectHooks属性存在
+    fiber.alternate?.effectHooks?.forEach(hook=>{
+      // 如果hook的deps数组长度大于0
+      if (hook.deps.length > 0) {
+        // 如果hook有cleanup方法，则执行cleanup方法
+        hook.cleanup && hook.cleanup();
+      }
+    })
+    // 递归执行runCleanup方法，传入fiber的child属性作为参数
+    runCleanup(fiber.child);
+    // 递归执行runCleanup方法，传入fiber的sibling属性作为参数
+    runCleanup(fiber.sibling);
+  }
+
+  // 开始执行effectHooks的回调函数
+  runCleanup(wipRoot);
+  run(wipRoot);
 }
 
 function commitDeletions(fiber) {
@@ -254,6 +305,7 @@ function reconcileChildren(fiber, children) {
 function updateFunctionComponent(fiber) {
   stateHooks = [];
   stateHookIndex = 0;
+  effectHooks = [];
   wipFiber = fiber;
   const children = [fiber.type(fiber.props)];
   reconcileChildren(fiber, children);
@@ -327,8 +379,8 @@ function update() {
   };
 }
 
-let stateHooks=[];
-let stateHookIndex=0;
+let stateHooks = [];
+let stateHookIndex = 0;
 /**
  * useState(initialState)函数用于在当前fiber中创建一个新的stateHook。
  * @param {any} initialState - 初始状态值
@@ -349,7 +401,7 @@ function useState(initialState) {
   stateHookIndex++;
   stateHooks.push(stateHook);
   currentFiber.stateHooks = stateHooks;
-  
+
   /**
    * setState(actions)函数用于更新stateHook.state。
    * @param {Function|Object} actions - 更新状态的函数或要更新的状态对象
@@ -370,10 +422,25 @@ function useState(initialState) {
   return [stateHook.state, setState];
 }
 
+let effectHooks = [];
+function useEffect(callback, deps) {
+  // 创建一个effectHook对象，包含callback、deps和cleanup属性
+  const effectHook = {
+    callback,
+    deps,
+    cleanup: undefined,
+  };
+  // 将effectHook添加到effectHooks数组中
+  effectHooks.push(effectHook);
+  // 将effectHooks赋值给wipFiber的effectHooks属性
+  wipFiber.effectHooks = effectHooks;
+}
+
 const React = {
   render,
   createElement,
   update,
   useState,
+  useEffect,
 };
 export default React;
