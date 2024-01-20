@@ -10,6 +10,19 @@ function Foo() {
     setCount((c)=>c+1)
     setBar('bar11')
   }
+
+  React.useEffect(()=>{
+    console.log('useEffect: ');
+    return ()=>{
+      console.log('return-useEffect: ');
+    }
+  },[])
+   React.useEffect(()=>{
+    console.log('count: ',count);
+    return ()=>{
+      console.log('return-count: ');
+    }
+  },[count])
   
   return <div>
     <h1>Foo</h1>
